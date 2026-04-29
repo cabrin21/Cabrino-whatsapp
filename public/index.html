@@ -1,134 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Cabrino Chat</title>
-<style>
-body{font-family:Arial;background:#0f172a;color:#fff}
-#messages{height:300px;overflow:auto;background:#1e293b;padding:10px}
-button{margin:5px}
-</style>
+  <title>Mini WhatsApp</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h2>Cabrino Chat 💬</h2>
+<div id="login">
+  <h2>Numéro</h2>
+  <input id="number" placeholder="+243..." />
+  <button onclick="login()">Entrer</button>
+</div>
 
-<input id="phone" placeholder="Numéro">
-<input id="pass" type="password" placeholder="Mot de passe">
-<button onclick="register()">Créer</button>
-<button onclick="login()">Login</button>
+<div id="app">
+  <div id="sidebar">
+    <input id="contact" placeholder="Numéro contact">
+    <button onclick="openChat()">Ouvrir</button>
+  </div>
 
-<hr>
+  <div id="chat">
+    <div id="messages"></div>
 
-<div id="users"></div>
-
-<div id="messages"></div>
-
-<input id="msg">
-<button onclick="send()">Envoyer</button>
-
-<input type="file" id="file">
-<button onclick="sendImage()">📸</button>
-
-<div id="recContainer">
-<button id="micBtn">🎤</button>
-<span>⬅️ Glisse pour annuler</span>
+    <input id="msg" placeholder="Message...">
+    <input type="file" id="file">
+    <button onclick="send()">Envoyer</button>
+    <button id="record">🎤</button>
+  </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script>
-let socket = io();
-let me, target;
-
-async function register(){
-    const res = await fetch("/register",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({phone:phone.value,password:pass.value})});
-    alert("Compte créé");
-}
-
-async function login(){
-    const res = await fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({phone:phone.value,password:pass.value})});
-    const data = await res.json();
-    me = data.phone;
-    loadUsers();
-}
-
-async function loadUsers(){
-    const res = await fetch("/users");
-    const users = await res.json();
-    usersDiv.innerHTML="";
-    users.forEach(u=>{
-        let d=document.createElement("div");
-        d.innerText=u.phone;
-        d.onclick=()=>target=u.phone;
-        usersDiv.appendChild(d);
-    });
-}
-
-function send(){
-    socket.emit("private message",{from:me,to:target,text:msg.value});
-}
-
-async function sendImage(){
-    let f=file.files[0];
-    let fd=new FormData();
-    fd.append("image",f);
-    let res=await fetch("/upload",{method:"POST",body:fd});
-    let data=await res.json();
-
-    socket.emit("private message",{from:me,to:target,image:data.url});
-}
-
-socket.on("private message",msg=>{
-    if(msg.text){
-        messages.innerHTML+=`<p>${msg.from}: ${msg.text}</p>`;
-    }
-    if(msg.image){
-        messages.innerHTML+=`<img src="${msg.image}" width="100">`;
-    }
-    if(msg.audio){
-        messages.innerHTML+=`<audio controls src="${msg.audio}"></audio>`;
-    }
-});
-
-// 🎤 audio hold + slide cancel
-let mediaRecorder, audioChunks=[], startX, cancel=false;
-
-micBtn.onmousedown = async e=>{
-    startX=e.clientX;
-    cancel=false;
-
-    let stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    mediaRecorder=new MediaRecorder(stream);
-    mediaRecorder.start();
-
-    mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
-
-    document.onmousemove = ev=>{
-        if(startX - ev.clientX > 100){
-            cancel=true;
-        }
-    };
-
-    document.onmouseup = ()=>{
-        mediaRecorder.stop();
-
-        mediaRecorder.onstop=async ()=>{
-            if(cancel) return;
-
-            let blob=new Blob(audioChunks);
-            let fd=new FormData();
-            fd.append("audio",blob);
-
-            let res=await fetch("/upload-audio",{method:"POST",body:fd});
-            let data=await res.json();
-
-            socket.emit("private message",{from:me,to:target,audio:data.url});
-        };
-    };
-};
-</script>
-
+<script src="app.js"></script>
 </body>
 </html>
