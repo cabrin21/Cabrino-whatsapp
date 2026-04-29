@@ -1,41 +1,39 @@
-const socket = io({ reconnection: true });
-
-let user = localStorage.getItem("user") || null;
+const socket = io();
+let user = null;
 let current = null;
 
-// AUTO LOGIN
-if (user) {
-  startApp();
-}
-
+// LOGIN
 function login() {
-  user = document.getElementById("number").value;
-  if (!user) return alert("Numéro requis");
+  user = document.getElementById("number").value.trim();
+
+  if (!user) return alert("Entre un numéro");
 
   localStorage.setItem("user", user);
-  startApp();
-}
 
-function startApp() {
   socket.emit("join", user);
+  socket.emit("get_chats");
 
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "flex";
 }
 
-// OUVRIR CHAT
-function openChat() {
-  current = document.getElementById("contact").value;
+// OPEN CHAT
+function openChat(contact) {
+  current = contact || document.getElementById("contact").value;
 
-  if (!current) return alert("Entre un numéro");
+  if (!current) return;
 
+  document.getElementById("chat-name").innerText = current;
   document.getElementById("messages").innerHTML = "";
+
   socket.emit("load", current);
+  socket.emit("seen", current);
 }
 
-// ENVOI MESSAGE
+// SEND MESSAGE
 function send() {
-  const msg = document.getElementById("msg").value;
+  const input = document.getElementById("msg");
+  const msg = input.value.trim();
 
   if (!msg || !current) return;
 
@@ -44,22 +42,13 @@ function send() {
     msg
   });
 
-  document.getElementById("msg").value = "";
+  input.value = "";
 }
 
-// HISTORIQUE
-socket.on("history", list => {
-  document.getElementById("messages").innerHTML = "";
-  list.forEach(add);
-});
-
-// NOUVEAU MESSAGE
+// RECEIVE MESSAGE
 socket.on("private_message", add);
 
-// AFFICHER MESSAGE
 function add(data) {
-  if (!current) return;
-
   if (data.from !== current && data.to !== current) return;
 
   const div = document.createElement("div");
@@ -67,79 +56,54 @@ function add(data) {
 
   if (data.image) {
     div.innerHTML = `<img src="${data.image}" width="120">`;
-  } else if (data.audio) {
-    div.innerHTML = `<audio controls src="${data.audio}"></audio>`;
   } else {
     div.innerText = data.msg;
   }
 
+  document.getElementById("messages").appendChild(div);
+
+  // AUTO SCROLL
   const box = document.getElementById("messages");
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight; // auto scroll
+  box.scrollTop = box.scrollHeight;
 }
 
-// IMAGE
-document.getElementById("file").onchange = function () {
-  if (!current) return alert("Ouvre un chat");
+// CHAT LIST
+socket.on("chat_list", list => {
+  const box = document.getElementById("chat-list");
+  box.innerHTML = "";
 
-  const file = this.files[0];
-  if (!file) return;
+  list.forEach(c => {
+    const div = document.createElement("div");
+    div.className = "chat-item";
+    div.innerText = c.contact;
 
-  const reader = new FileReader();
+    div.onclick = () => openChat(c.contact);
 
-  reader.onload = () => {
-    socket.emit("private_message", {
-      to: current,
-      image: reader.result
+    box.appendChild(div);
+  });
+});
+
+// FILE UPLOAD
+document.getElementById("file").onchange = async function () {
+  if (!this.files[0] || !current) return;
+
+  const formData = new FormData();
+  formData.append("file", this.files[0]);
+
+  try {
+    const res = await fetch("/upload", {
+      method: "POST",
+      body: formData
     });
-  };
 
-  reader.readAsDataURL(file);
-};
-
-// AUDIO
-let rec, chunks = [], recording = false;
-
-document.getElementById("record").onmousedown = async () => {
-  if (!current) return alert("Ouvre un chat");
-
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-  rec = new MediaRecorder(stream);
-
-  rec.ondataavailable = e => chunks.push(e.data);
-
-  rec.onstop = () => {
-    if (!recording) {
-      chunks = [];
-      return;
-    }
-
-    const blob = new Blob(chunks);
-    const url = URL.createObjectURL(blob);
+    const data = await res.json();
 
     socket.emit("private_message", {
       to: current,
-      audio: url
+      image: data.url
     });
 
-    chunks = [];
-  };
-
-  recording = true;
-  rec.start();
-};
-
-// STOP AUDIO
-document.onmouseup = () => {
-  if (rec) rec.stop();
-};
-
-// SLIDE CANCEL (style WhatsApp)
-document.onmousemove = (e) => {
-  if (recording && e.clientX < 50) {
-    recording = false;
-    chunks = [];
-    console.log("❌ enregistrement annulé");
+  } catch (err) {
+    alert("Erreur upload");
   }
 };
