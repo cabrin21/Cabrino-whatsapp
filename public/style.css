@@ -1,0 +1,45 @@
+body {
+  margin:0;
+  font-family:Arial;
+  background:#111;
+  color:white;
+}
+
+#app {
+  display:none;
+  display:flex;
+  height:100vh;
+}
+
+#sidebar {
+  width:30%;
+  background:#222;
+  padding:10px;
+}
+
+#chat {
+  width:70%;
+  display:flex;
+  flex-direction:column;
+}
+
+#messages {
+  flex:1;
+  overflow:auto;
+  padding:10px;
+}
+
+.msg {
+  margin:5px;
+  padding:10px;
+  border-radius:10px;
+  max-width:60%;
+}
+
+.me { background:green; align-self:flex-end; }
+.other { background:#333; }
+
+input, button {
+  padding:10px;
+  margin:5px;
+}
