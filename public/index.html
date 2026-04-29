@@ -1,34 +1,65 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
+  <meta charset="UTF-8">
   <title>Mini WhatsApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
+<!-- LOGIN -->
 <div id="login">
-  <h2>Numéro</h2>
+  <h2>📱 Entrer votre numéro</h2>
+
   <input id="number" placeholder="+243..." />
   <button onclick="login()">Entrer</button>
 </div>
 
+<!-- APP -->
 <div id="app">
+
+  <!-- SIDEBAR -->
   <div id="sidebar">
+    <h3>💬 Discussions</h3>
+
     <input id="contact" placeholder="Numéro contact">
     <button onclick="openChat()">Ouvrir</button>
+
+    <div id="online"></div>
   </div>
 
+  <!-- CHAT -->
   <div id="chat">
+
+    <div id="chat-header">
+      <span id="chat-name">Aucun chat</span>
+      <small id="status"></small>
+    </div>
+
     <div id="messages"></div>
 
-    <input id="msg" placeholder="Message...">
-    <input type="file" id="file">
-    <button onclick="send()">Envoyer</button>
-    <button id="record">🎤</button>
+    <div id="typing"></div>
+
+    <!-- INPUT -->
+    <div class="input-area">
+      <input id="msg" placeholder="Message..." autocomplete="off">
+
+      <input type="file" id="file" hidden>
+      <button onclick="document.getElementById('file').click()">📎</button>
+
+      <button onclick="send()">➤</button>
+      <button id="record">🎤</button>
+    </div>
+
   </div>
+
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="app.js"></script>
+
 </body>
 </html>
