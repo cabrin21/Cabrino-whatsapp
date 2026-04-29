@@ -1,18 +1,19 @@
 {
   "name": "mini-whatsapp-pro",
   "version": "1.0.0",
-  "description": "Mini WhatsApp temps réel avec audio et images",
+  "description": "Mini WhatsApp temps réel avec upload et notifications",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"
   },
   "keywords": ["chat", "whatsapp", "socket.io", "realtime"],
-  "author": "toi",
+  "author": "killua",
   "license": "MIT",
   "dependencies": {
     "express": "^4.19.2",
-    "socket.io": "^4.7.5"
+    "socket.io": "^4.7.5",
+    "multer": "1.4.5-lts.1"
   },
   "engines": {
     "node": ">=18"
