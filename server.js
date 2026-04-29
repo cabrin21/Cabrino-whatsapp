@@ -1,88 +1,122 @@
 const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const fs = require("fs");
+
 const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http);
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
-const multer = require("multer");
-
-app.use(express.json());
 app.use(express.static("public"));
-app.use("/uploads", express.static("public/uploads"));
 
-// MongoDB
-mongoose.connect(process.env.MONGO_URL)
-.then(()=>console.log("Mongo connecté"))
-.catch(err=>console.log(err));
+const server = http.createServer(app);
 
-// Models
-const User = mongoose.model("User", {
-    phone: String,
-    password: String
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
 });
 
-const Message = mongoose.model("Message", {
-    from: String,
-    to: String,
-    text: String,
-    image: String,
-    audio: String
+let users = {}; 
+let messages = {};
+
+// LOAD SAFE
+try {
+  if (fs.existsSync("messages.json")) {
+    const data = fs.readFileSync("messages.json", "utf-8");
+    messages = data ? JSON.parse(data) : {};
+  }
+} catch (e) {
+  console.log("⚠️ erreur lecture JSON, reset");
+  messages = {};
+}
+
+// SAVE SAFE
+function save() {
+  try {
+    fs.writeFileSync("messages.json", JSON.stringify(messages, null, 2));
+  } catch (e) {
+    console.log("❌ erreur sauvegarde");
+  }
+}
+
+// ROOM
+function room(a, b) {
+  if (!a || !b) return null;
+  return [a, b].sort().join("_");
+}
+
+io.on("connection", (socket) => {
+
+  console.log("🔌 nouveau client");
+
+  // JOIN
+  socket.on("join", (user) => {
+    if (!user) return;
+
+    users[user] = socket.id;
+    socket.user = user;
+
+    console.log("✅ connecté :", user);
+
+    io.emit("online", Object.keys(users));
+  });
+
+  // MESSAGE PRIVÉ
+  socket.on("private_message", (data) => {
+    try {
+      if (!socket.user) return;
+
+      const { to, msg, image, audio } = data;
+      if (!to) return;
+
+      const from = socket.user;
+      const r = room(from, to);
+      if (!r) return;
+
+      if (!messages[r]) messages[r] = [];
+
+      const message = {
+        from,
+        to,
+        msg: msg || null,
+        image: image || null,
+        audio: audio || null,
+        time: Date.now()
+      };
+
+      messages[r].push(message);
+      save();
+
+      // envoyer au destinataire
+      if (users[to]) {
+        io.to(users[to]).emit("private_message", message);
+      }
+
+      // renvoyer à l'envoyeur
+      socket.emit("private_message", message);
+
+    } catch (e) {
+      console.log("❌ erreur message");
+    }
+  });
+
+  // CHARGER HISTORIQUE
+  socket.on("load", (to) => {
+    if (!socket.user || !to) return;
+
+    const r = room(socket.user, to);
+    socket.emit("history", messages[r] || []);
+  });
+
+  // DISCONNECT
+  socket.on("disconnect", () => {
+    if (socket.user) {
+      delete users[socket.user];
+      console.log("❌ déconnecté :", socket.user);
+      io.emit("online", Object.keys(users));
+    }
+  });
+
 });
 
-// Multer
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, "public/uploads"),
-    filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
+server.listen(3000, () => {
+  console.log("🚀 http://localhost:3000");
 });
-const upload = multer({ storage });
-
-// Routes
-app.post("/register", async (req,res)=>{
-    const { phone, password } = req.body;
-    const exist = await User.findOne({ phone });
-    if(exist) return res.json({ ok:false, msg:"Numéro existe" });
-
-    const hash = await bcrypt.hash(password,10);
-    await User.create({ phone, password:hash });
-
-    res.json({ ok:true });
-});
-
-app.post("/login", async (req,res)=>{
-    const { phone, password } = req.body;
-    const user = await User.findOne({ phone });
-    if(!user) return res.json({ ok:false, msg:"Introuvable" });
-
-    const valid = await bcrypt.compare(password, user.password);
-    if(!valid) return res.json({ ok:false, msg:"Erreur mdp" });
-
-    res.json({ ok:true, phone });
-});
-
-app.get("/users", async (req,res)=>{
-    const users = await User.find({}, "phone");
-    res.json(users);
-});
-
-app.post("/upload", upload.single("image"), (req,res)=>{
-    res.json({ url:"/uploads/"+req.file.filename });
-});
-
-app.post("/upload-audio", upload.single("audio"), (req,res)=>{
-    res.json({ url:"/uploads/"+req.file.filename });
-});
-
-// Socket
-io.on("connection", socket => {
-
-    socket.on("private message", async data => {
-        const msg = new Message(data);
-        await msg.save();
-        io.emit("private message", data);
-    });
-
-});
-
-// PORT
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, ()=>console.log("Server running "+PORT));
