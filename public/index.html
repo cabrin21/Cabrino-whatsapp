@@ -1,156 +1,133 @@
-
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Cabrino Nsala Chats</title>
+<title>Cabrino Chat</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Arial;background:#0f172a;color:#fff;height:100vh;display:flex}
-#auth{width:100%;display:flex;align-items:center;justify-content:center}
-.card{background:#1e293b;padding:20px;border-radius:12px;min-width:280px}
-input{width:100%;padding:10px;margin:6px 0;border-radius:8px;border:none}
-button{padding:10px 12px;border:none;border-radius:8px;background:#22c55e;color:#fff;cursor:pointer;width:100%}
-a{color:#38bdf8;cursor:pointer}
-#app{display:none;width:100%;height:100%}
-.sidebar{width:30%;background:#111827;padding:10px;overflow-y:auto}
-.chat{width:70%;display:flex;flex-direction:column}
-.user{padding:10px;border-bottom:1px solid #374151;cursor:pointer;display:flex;justify-content:space-between}
-.user:hover{background:#1f2937}
-.status{font-size:12px}
-.status.on{color:#22c55e}
-.status.off{color:#9ca3af}
-.header{padding:10px;border-bottom:1px solid #374151}
-#messages{flex:1;overflow-y:auto;padding:10px}
-.msg{margin:6px 0}
-.me{color:#22c55e}
-.other{color:#fff}
-.footer{display:flex;padding:10px;border-top:1px solid #374151}
-.footer input{flex:1;margin-right:8px}
+body{font-family:Arial;background:#0f172a;color:#fff}
+#messages{height:300px;overflow:auto;background:#1e293b;padding:10px}
+button{margin:5px}
 </style>
 </head>
 <body>
 
-<div id="auth">
-  <div class="card" id="loginCard">
-    <h3>Connexion</h3>
-    <input id="l_user" placeholder="Nom d'utilisateur">
-    <input id="l_pass" type="password" placeholder="Mot de passe">
-    <button onclick="login()">Se connecter</button>
-    <p>Pas de compte ? <a onclick="showRegister()">Créer</a></p>
-  </div>
+<h2>Cabrino Chat 💬</h2>
 
-  <div class="card" id="registerCard" style="display:none">
-    <h3>Inscription</h3>
-    <input id="r_user" placeholder="Nom d'utilisateur">
-    <input id="r_pass" type="password" placeholder="Mot de passe">
-    <button onclick="register()">Créer</button>
-    <p>Déjà un compte ? <a onclick="showLogin()">Connexion</a></p>
-  </div>
-</div>
+<input id="phone" placeholder="Numéro">
+<input id="pass" type="password" placeholder="Mot de passe">
+<button onclick="register()">Créer</button>
+<button onclick="login()">Login</button>
 
-<div id="app">
-  <div class="sidebar" id="users"></div>
-  <div class="chat">
-    <div class="header" id="chatWith">Choisis un contact</div>
-    <div id="messages"></div>
-    <div class="footer">
-      <input id="msg" placeholder="Message...">
-      <button onclick="send()">Envoyer</button>
-    </div>
-  </div>
+<hr>
+
+<div id="users"></div>
+
+<div id="messages"></div>
+
+<input id="msg">
+<button onclick="send()">Envoyer</button>
+
+<input type="file" id="file">
+<button onclick="sendImage()">📸</button>
+
+<div id="recContainer">
+<button id="micBtn">🎤</button>
+<span>⬅️ Glisse pour annuler</span>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-let socket = null;
-let me = null;
-let target = null;
-const usersDiv = document.getElementById("users");
-const messagesDiv = document.getElementById("messages");
-
-function showRegister(){ document.getElementById("loginCard").style.display="none"; document.getElementById("registerCard").style.display="block"; }
-function showLogin(){ document.getElementById("registerCard").style.display="none"; document.getElementById("loginCard").style.display="block"; }
+let socket = io();
+let me, target;
 
 async function register(){
-  const username = document.getElementById("r_user").value;
-  const password = document.getElementById("r_pass").value;
-  const res = await fetch("/register",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
-  const data = await res.json();
-  if(data.ok){ alert("Compte créé"); showLogin(); } else { alert(data.msg||"Erreur"); }
+    const res = await fetch("/register",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({phone:phone.value,password:pass.value})});
+    alert("Compte créé");
 }
 
 async function login(){
-  const username = document.getElementById("l_user").value;
-  const password = document.getElementById("l_pass").value;
-  const res = await fetch("/login",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
-  const data = await res.json();
-  if(!data.ok){ alert(data.msg||"Erreur"); return; }
-  me = data.username;
-  document.getElementById("auth").style.display="none";
-  document.getElementById("app").style.display="flex";
-
-  socket = io();
-  socket.emit("join", me);
-
-  socket.on("private message", (msg)=>{
-    if(!target) return;
-    if((msg.from===me && msg.to===target) || (msg.from===target && msg.to===me)){
-      addMsg(msg);
-    }
-  });
-
-  socket.on("presence", ({username, online})=>{
-    const el = document.querySelector(`[data-user="${username}"] .status`);
-    if(el){
-      el.textContent = online ? "en ligne" : "hors ligne";
-      el.className = "status " + (online ? "on":"off");
-    }
-  });
-
-  loadUsers();
+    const res = await fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({phone:phone.value,password:pass.value})});
+    const data = await res.json();
+    me = data.phone;
+    loadUsers();
 }
 
 async function loadUsers(){
-  const res = await fetch("/users");
-  const users = await res.json();
-  usersDiv.innerHTML = "";
-  users.forEach(u=>{
-    if(u.username===me) return;
-    const div = document.createElement("div");
-    div.className = "user";
-    div.setAttribute("data-user", u.username);
-    div.innerHTML = `<span>${u.username}</span><span class="status ${u.online?'on':'off'}">${u.online?'en ligne':'hors ligne'}</span>`;
-    div.onclick = ()=> selectUser(u.username);
-    usersDiv.appendChild(div);
-  });
-}
-
-async function selectUser(u){
-  target = u;
-  document.getElementById("chatWith").textContent = "Chat avec " + u;
-  messagesDiv.innerHTML = "";
-  const res = await fetch(`/messages?u1=${encodeURIComponent(me)}&u2=${encodeURIComponent(u)}`);
-  const msgs = await res.json();
-  msgs.forEach(addMsg);
-}
-
-function addMsg(m){
-  const p = document.createElement("p");
-  p.className = "msg " + (m.from===me ? "me":"other");
-  p.innerHTML = `<b>${m.from}:</b> ${m.text}`;
-  messagesDiv.appendChild(p);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    const res = await fetch("/users");
+    const users = await res.json();
+    usersDiv.innerHTML="";
+    users.forEach(u=>{
+        let d=document.createElement("div");
+        d.innerText=u.phone;
+        d.onclick=()=>target=u.phone;
+        usersDiv.appendChild(d);
+    });
 }
 
 function send(){
-  if(!target) return alert("Choisis un contact");
-  const input = document.getElementById("msg");
-  const text = input.value.trim();
-  if(!text) return;
-  socket.emit("private message", { from: me, to: target, text });
-  input.value = "";
+    socket.emit("private message",{from:me,to:target,text:msg.value});
 }
+
+async function sendImage(){
+    let f=file.files[0];
+    let fd=new FormData();
+    fd.append("image",f);
+    let res=await fetch("/upload",{method:"POST",body:fd});
+    let data=await res.json();
+
+    socket.emit("private message",{from:me,to:target,image:data.url});
+}
+
+socket.on("private message",msg=>{
+    if(msg.text){
+        messages.innerHTML+=`<p>${msg.from}: ${msg.text}</p>`;
+    }
+    if(msg.image){
+        messages.innerHTML+=`<img src="${msg.image}" width="100">`;
+    }
+    if(msg.audio){
+        messages.innerHTML+=`<audio controls src="${msg.audio}"></audio>`;
+    }
+});
+
+// 🎤 audio hold + slide cancel
+let mediaRecorder, audioChunks=[], startX, cancel=false;
+
+micBtn.onmousedown = async e=>{
+    startX=e.clientX;
+    cancel=false;
+
+    let stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRecorder=new MediaRecorder(stream);
+    mediaRecorder.start();
+
+    mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+
+    document.onmousemove = ev=>{
+        if(startX - ev.clientX > 100){
+            cancel=true;
+        }
+    };
+
+    document.onmouseup = ()=>{
+        mediaRecorder.stop();
+
+        mediaRecorder.onstop=async ()=>{
+            if(cancel) return;
+
+            let blob=new Blob(audioChunks);
+            let fd=new FormData();
+            fd.append("audio",blob);
+
+            let res=await fetch("/upload-audio",{method:"POST",body:fd});
+            let data=await res.json();
+
+            socket.emit("private message",{from:me,to:target,audio:data.url});
+        };
+    };
+};
 </script>
 
 </body>
