@@ -1,60 +1,66 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Mini WhatsApp</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Ultra</title>
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
 <!-- LOGIN -->
 <div id="login">
-  <h2>📱 Entrer votre numéro</h2>
+  <h2>📱 Numéro</h2>
 
-  <input id="number" placeholder="+243..." />
+  <input id="number" placeholder="+243..." autocomplete="off">
+
+  <input type="file" id="avatarInput" accept="image/*">
+
   <button onclick="login()">Entrer</button>
 </div>
 
 <!-- APP -->
 <div id="app">
 
-  <!-- SIDEBAR -->
-  <div id="sidebar">
-    <h3>💬 Discussions</h3>
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-header">WhatsApp</div>
 
-    <input id="contact" placeholder="Numéro contact">
-    <button onclick="openChat()">Ouvrir</button>
+  <div id="chat-list"></div>
 
-    <div id="online"></div>
+  <div class="new-chat">
+    <input id="contact" placeholder="Numéro..." autocomplete="off">
+    <button onclick="openChat()">+</button>
   </div>
+</div>
 
-  <!-- CHAT -->
-  <div id="chat">
+<!-- CHAT -->
+<div id="chat">
 
-    <div id="chat-header">
-      <span id="chat-name">Aucun chat</span>
-      <small id="status"></small>
-    </div>
-
-    <div id="messages"></div>
-
-    <div id="typing"></div>
-
-    <!-- INPUT -->
-    <div class="input-area">
-      <input id="msg" placeholder="Message..." autocomplete="off">
-
-      <input type="file" id="file" hidden>
-      <button onclick="document.getElementById('file').click()">📎</button>
-
-      <button onclick="send()">➤</button>
-      <button id="record">🎤</button>
-    </div>
-
+<!-- HEADER -->
+<div id="chat-header">
+  <img id="avatar" src="https://i.pravatar.cc/40">
+  <div>
+    <strong id="chat-name">Aucun chat</strong><br>
+    <small id="status">hors ligne</small>
   </div>
+</div>
+
+<!-- MESSAGES -->
+<div id="messages"></div>
+
+<!-- INPUT -->
+<div class="input-area">
+  <button onclick="document.getElementById('file').click()">📎</button>
+  <input type="file" id="file" hidden accept="image/*,audio/*">
+
+  <input id="msg" placeholder="Message..." autocomplete="off">
+
+  <button onclick="send()">➤</button>
+</div>
+
+</div>
 
 </div>
 
